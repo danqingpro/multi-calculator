@@ -42,6 +42,20 @@ private data class ChangelogEntry(
 
 private val CHANGELOG = listOf(
     ChangelogEntry(
+        version = "2.11.0",
+        date = "2026-09-21",
+        zh = listOf(
+            "货币转换接入免费实时汇率 API（open.er-api.com，无需注册），支持 18 种主要货币实时换算，含自动加载、手动刷新、离线备用数据",
+            "新增 README.md 文档，详细说明环境安装（JDK 17、Android SDK 34）和编译步骤，任何人可据此自行编译 APK",
+            "项目已开源至 GitHub: github.com/danqingpro/multi-calculator"
+        ),
+        en = listOf(
+            "Currency converter integrated with free real-time exchange rate API (open.er-api.com, no registration needed), supports 18 major currencies with auto-load, manual refresh, and offline fallback rates",
+            "Added README.md with detailed build instructions (JDK 17, Android SDK 34) so anyone can compile their own APK",
+            "Project is now open source on GitHub: github.com/danqingpro/multi-calculator"
+        )
+    ),
+    ChangelogEntry(
         version = "2.10.1",
         date = "2026-09-07",
         zh = listOf(

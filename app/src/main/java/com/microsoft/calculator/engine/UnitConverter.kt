@@ -154,16 +154,26 @@ object UnitConverter {
             Unit("ftlbmin", "Foot-pound/minute", 0.02259697, labelZh = "磅英尺/分钟"),
             Unit("kgfm", "kgf·m/s", 9.80665, labelZh = "千克力·米/秒")
         ),
-        // Mock 货币数据,对标 Windows 计算器开发版的 mock(行星而非国家)
+        // 真实货币(以 CNY 为基准,汇率通过 CurrencyApiService 动态获取)
         Category.CURRENCY to listOf(
-            Unit("earth", "Earth Credit (mock)", 1.0, labelZh = "地球信用点(模拟)"),
-            Unit("mars", "Mars Token (mock)", 1.7, labelZh = "火星代币(模拟)"),
-            Unit("venus", "Venus Coin (mock)", 0.6, labelZh = "金星币(模拟)"),
-            Unit("jupiter", "Jupiter Ring (mock)", 0.04, labelZh = "木星环(模拟)"),
-            Unit("saturn", "Saturn Shard (mock)", 0.12, labelZh = "土星碎片(模拟)"),
-            Unit("mercury", "Mercury Bead (mock)", 2.3, labelZh = "水星珠(模拟)"),
-            Unit("neptune", "Neptune Gem (mock)", 0.9, labelZh = "海王星宝石(模拟)"),
-            Unit("uranus", "Uranus Pebble (mock)", 1.4, labelZh = "天王星卵石(模拟)")
+            Unit("CNY", "Chinese Yuan", 1.0, labelZh = "人民币"),
+            Unit("USD", "US Dollar", 0.15, labelZh = "美元"),
+            Unit("EUR", "Euro", 0.13, labelZh = "欧元"),
+            Unit("JPY", "Japanese Yen", 20.0, labelZh = "日元"),
+            Unit("HKD", "Hong Kong Dollar", 1.17, labelZh = "港元"),
+            Unit("GBP", "Pound Sterling", 0.11, labelZh = "英镑"),
+            Unit("AUD", "Australian Dollar", 0.21, labelZh = "澳元"),
+            Unit("CAD", "Canadian Dollar", 0.21, labelZh = "加元"),
+            Unit("CHF", "Swiss Franc", 0.12, labelZh = "瑞士法郎"),
+            Unit("SGD", "Singapore Dollar", 0.19, labelZh = "新加坡元"),
+            Unit("KRW", "South Korean Won", 200.0, labelZh = "韩元"),
+            Unit("RUB", "Russian Ruble", 12.5, labelZh = "俄罗斯卢布"),
+            Unit("THB", "Thai Baht", 5.0, labelZh = "泰铢"),
+            Unit("NZD", "New Zealand Dollar", 0.23, labelZh = "新西兰元"),
+            Unit("TWD", "New Taiwan Dollar", 4.7, labelZh = "新台币"),
+            Unit("INR", "Indian Rupee", 12.5, labelZh = "印度卢比"),
+            Unit("MYR", "Malaysian Ringgit", 0.61, labelZh = "马来西亚林吉特"),
+            Unit("VND", "Vietnamese Dong", 3400.0, labelZh = "越南盾")
         )
     )
 
@@ -178,6 +188,20 @@ object UnitConverter {
     fun temperatureUnits(lang: String): List<Pair<String, String>> =
         temperatureUnitDefs.map { it.third to (if (lang == "zh") it.second else it.first) }
 
+    // 动态汇率: 货币代码 -> 1 CNY = X 目标货币
+    private val currencyRates = mutableMapOf<String, Double>()
+
+    /** 更新实时汇率(API 返回的 rates 已以 CNY 为基准) */
+    fun updateCurrencyRates(rates: Map<String, Double>) {
+        synchronized(currencyRates) {
+            currencyRates.clear()
+            currencyRates.putAll(rates)
+        }
+    }
+
+    /** 货币是否已有实时汇率 */
+    fun hasLiveRates(): Boolean = synchronized(currencyRates) { currencyRates.isNotEmpty() }
+
     fun convert(value: Double, category: Category, fromIdx: Int, toIdx: Int): Double {
         if (category == Category.TEMPERATURE) {
             return convertTemp(value, fromIdx, toIdx)
@@ -185,6 +209,14 @@ object UnitConverter {
         val list = units[category] ?: return value
         val from = list.getOrNull(fromIdx) ?: return value
         val to = list.getOrNull(toIdx) ?: return value
+        if (category == Category.CURRENCY) {
+            val rates = synchronized(currencyRates) { currencyRates.toMap() }
+            if (rates.isNotEmpty()) {
+                val fromRate = rates[from.name] ?: return value
+                val toRate = rates[to.name] ?: return value
+                return value * toRate / fromRate
+            }
+        }
         val base = value * from.toBase
         return base / to.toBase
     }

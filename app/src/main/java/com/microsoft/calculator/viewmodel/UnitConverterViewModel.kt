@@ -1,11 +1,14 @@
 package com.microsoft.calculator.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.microsoft.calculator.engine.CurrencyApiService
 import com.microsoft.calculator.engine.NumberFormatter
 import com.microsoft.calculator.engine.UnitConverter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.math.BigDecimal
 
 /**
@@ -29,6 +32,14 @@ class UnitConverterViewModel : ViewModel() {
     private val _toValue = MutableStateFlow("")
     val toValue: StateFlow<String> = _toValue.asStateFlow()
 
+    // 货币加载状态: null=未加载, "loading"=加载中, "ready"=就绪, "error"=失败
+    private val _currencyStatus = MutableStateFlow<String?>(null)
+    val currencyStatus: StateFlow<String?> = _currencyStatus.asStateFlow()
+
+    // 汇率更新时间
+    private val _rateUpdateTime = MutableStateFlow("")
+    val rateUpdateTime: StateFlow<String> = _rateUpdateTime.asStateFlow()
+
     init { convert() }
 
     /** 每个类别默认的 (fromIdx, toIdx) */
@@ -45,7 +56,7 @@ class UnitConverterViewModel : ViewModel() {
         UnitConverter.Category.PRESSURE to (4 to 3),   // 大气压 -> 巴
         UnitConverter.Category.ENERGY to (1 to 5),
         UnitConverter.Category.POWER to (1 to 3),      // 千瓦 -> 马力(美制)
-        UnitConverter.Category.CURRENCY to (0 to 1)
+        UnitConverter.Category.CURRENCY to (0 to 1)   // 人民币 -> 美元
     )
 
     /**
@@ -68,6 +79,31 @@ class UnitConverterViewModel : ViewModel() {
         _toIdx.value = d.second
         if (_fromValue.value.isEmpty()) _fromValue.value = "1"
         convert()
+        // 货币类别: 自动获取实时汇率
+        if (c == UnitConverter.Category.CURRENCY && !UnitConverter.hasLiveRates()) {
+            fetchCurrencyRates()
+        }
+    }
+
+    /** 从免费 API 获取实时汇率 */
+    fun fetchCurrencyRates() {
+        if (_currencyStatus.value == "loading") return
+        _currencyStatus.value = "loading"
+        viewModelScope.launch {
+            try {
+                val rates = CurrencyApiService.fetchRates()
+                if (rates.isNotEmpty()) {
+                    UnitConverter.updateCurrencyRates(rates)
+                    _currencyStatus.value = "ready"
+                    _rateUpdateTime.value = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                    convert()
+                } else {
+                    _currencyStatus.value = "error"
+                }
+            } catch (e: Exception) {
+                _currencyStatus.value = "error"
+            }
+        }
     }
 
     fun setFromIdx(i: Int) { _fromIdx.value = i; convert() }

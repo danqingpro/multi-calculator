@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.microsoft.calculator.engine.UnitConverter
 import com.microsoft.calculator.ui.components.CalcButton
 import com.microsoft.calculator.ui.i18n.LocalStrings
 import com.microsoft.calculator.ui.theme.*
@@ -30,6 +31,9 @@ fun ConverterScreen(vm: UnitConverterViewModel) {
     val toIdx by vm.toIdx.collectAsState()
     val fromValue by vm.fromValue.collectAsState()
     val toValue by vm.toValue.collectAsState()
+    val category by vm.category.collectAsState()
+    val currencyStatus by vm.currencyStatus.collectAsState()
+    val rateUpdateTime by vm.rateUpdateTime.collectAsState()
 
     val s = LocalStrings.current
     val units = vm.fromUnitLabels(s.langCode)
@@ -59,6 +63,16 @@ fun ConverterScreen(vm: UnitConverterViewModel) {
             onUnitSelected = { vm.setToIdx(it) }
         )
 
+        // 货币汇率状态
+        if (category == UnitConverter.Category.CURRENCY) {
+            Spacer(Modifier.height(6.dp))
+            CurrencyStatusBar(
+                status = currencyStatus,
+                updateTime = rateUpdateTime,
+                onRetry = { vm.fetchCurrencyRates() }
+            )
+        }
+
         // 「约等于」补充单位行(角度/功率等)
         if (supplementary.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
@@ -84,6 +98,82 @@ fun ConverterScreen(vm: UnitConverterViewModel) {
             onClear = { vm.clear() },
             onNegate = { vm.negate() }
         )
+    }
+}
+
+/** 货币汇率加载状态条 */
+@Composable
+private fun CurrencyStatusBar(
+    status: String?,
+    updateTime: String,
+    onRetry: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        when (status) {
+            "loading" -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    color = AccentBlue,
+                    strokeWidth = 2.dp
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("正在获取实时汇率...", color = TextSecondary, fontSize = 12.sp)
+            }
+            "ready" -> {
+                Text("实时汇率 $updateTime", color = TextSecondary, fontSize = 12.sp)
+                Spacer(Modifier.width(6.dp))
+                Surface(
+                    color = ButtonBg,
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                ) {
+                    Text(
+                        "刷新",
+                        color = AccentBlue,
+                        fontSize = 11.sp,
+                        modifier = Modifier
+                            .clickableNoRipple { onRetry() }
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            "error" -> {
+                Text("汇率获取失败,使用离线数据", color = AccentRed, fontSize = 12.sp)
+                Spacer(Modifier.width(6.dp))
+                Surface(
+                    color = ButtonBg,
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                ) {
+                    Text(
+                        "重试",
+                        color = AccentBlue,
+                        fontSize = 11.sp,
+                        modifier = Modifier
+                            .clickableNoRipple { onRetry() }
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            else -> {
+                Text("使用离线汇率数据", color = TextSecondary, fontSize = 12.sp)
+                Spacer(Modifier.width(6.dp))
+                Surface(
+                    color = ButtonBg,
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier.clip(RoundedCornerShape(4.dp))
+                ) {
+                    Text(
+                        "获取",
+                        color = AccentBlue,
+                        fontSize = 11.sp,
+                        modifier = Modifier
+                            .clickableNoRipple { onRetry() }
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

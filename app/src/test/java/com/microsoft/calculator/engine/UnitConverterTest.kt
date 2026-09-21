@@ -58,9 +58,18 @@ class UnitConverterTest {
     }
 
     @Test
-    fun currencyMock() {
-        // 1 Mars = 1.7 Earth (Mars toBase=1.7 -> 1 Mars = 1.7 base, Earth toBase=1.0)
-        val r = UnitConverter.convert(1.0, UnitConverter.Category.CURRENCY, 1, 0)
-        assertEquals(1.7, r, 1e-6)
+    fun currencyOfflineFallback() {
+        // 离线模式: 1 CNY = 0.15 USD (fallback toBase)
+        val r = UnitConverter.convert(1.0, UnitConverter.Category.CURRENCY, 0, 1)
+        assertEquals(0.15, r, 1e-6)
+    }
+
+    @Test
+    fun currencyWithLiveRates() {
+        // 模拟实时汇率: 1 CNY = 0.14 USD, 1 CNY = 20 JPY
+        UnitConverter.updateCurrencyRates(mapOf("CNY" to 1.0, "USD" to 0.14, "JPY" to 20.0))
+        // 1 USD = 20/0.14 JPY
+        val r = UnitConverter.convert(1.0, UnitConverter.Category.CURRENCY, 1, 3)
+        assertEquals(20.0 / 0.14, r, 1e-6)
     }
 }
